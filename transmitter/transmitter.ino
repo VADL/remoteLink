@@ -1,3 +1,4 @@
+
 // Feather9x_TX
 // -*- mode: C++ -*-
 // Example sketch showing how to create a simple messaging client (transmitter)
@@ -9,49 +10,13 @@
 #include <SPI.h>
 #include <RH_RF95.h>
 
-#define Serial Serial1
-
-/* for feather32u4
-  #define RFM95_CS 8
-  #define RFM95_RST 4
-  #define RFM95_INT 7
-*/
+// Blinky on receipt
+#define LED 13
 
 /* for feather m0   */
 #define RFM95_CS 8
 #define RFM95_RST 4
 #define RFM95_INT 3
-
-/* for shield
-  #define RFM95_CS 10
-  #define RFM95_RST 9
-  #define RFM95_INT 7
-*/
-
-
-/* for ESP w/featherwing
-  #define RFM95_CS  2    // "E"
-  #define RFM95_RST 16   // "D"
-  #define RFM95_INT 15   // "B"
-*/
-
-/* Feather 32u4 w/wing
-  #define RFM95_RST     11   // "A"
-  #define RFM95_CS      10   // "B"
-  #define RFM95_INT     2    // "SDA" (only SDA/SCL/RX/TX have IRQ!)
-*/
-
-/* Feather m0 w/wing
-  #define RFM95_RST     11   // "A"
-  #define RFM95_CS      10   // "B"
-  #define RFM95_INT     6    // "D"
-*/
-
-/* Teensy 3.x w/wing
-  #define RFM95_RST     9   // "A"
-  #define RFM95_CS      10   // "B"
-  #define RFM95_INT     4    // "C"
-*/
 
 // Change to 434.0 or other frequency, must match RX's freq!
 #define RF95_FREQ 915.0
@@ -64,8 +29,8 @@ void setup()
   pinMode(RFM95_RST, OUTPUT);
   digitalWrite(RFM95_RST, HIGH);
 
-  //while (!Serial);
   Serial.begin(9600);
+  Serial1.begin(9600);
   delay(100);
 
   Serial.println("Feather LoRa TX Test!");
@@ -119,8 +84,8 @@ int recvWithStartEndMarkers() {
   // clear receive buffer
   memset(receivedChars, 0, numChars);
 
-  while (Serial.available() > 0) {
-    rc = Serial.read();
+  while (Serial1.available() > 0) {
+    rc = Serial1.read();
 
     if (recvInProgress == true) {
       if (rc != endMarker) {
@@ -135,6 +100,7 @@ int recvWithStartEndMarkers() {
         numBytesReceived = ndx;
         recvInProgress = false;
         ndx = 0;
+        break;
       }
     }
     else if (rc == startMarker) {
@@ -145,50 +111,30 @@ int recvWithStartEndMarkers() {
 }
 // END RECEIVING DATA FROM SERIAL PORT
 
+int blinkTime = 0;
+boolean ledState = false;
+
 void loop()
 {
   // receive data from serial port to transmit using the radio
   // receives into 'receivedChars'
   int numBytes = recvWithStartEndMarkers();
   if (numBytes) {
-    Serial.println("Sending to rf95_server");
-    // Send a message to rf95_server
+    Serial.print("Sending "); Serial.println(receivedChars);
 
-    char radiopacket[numChars] = {0};
-    memcpy(radiopacket, receivedChars, numBytes); // copy the 0 as well
-    Serial.print("Sending "); Serial.println(radiopacket);
-
-    Serial.println("Sending...");// delay(10);
-    rf95.send((uint8_t *)radiopacket, numBytes);
-
-    Serial.println("Waiting for packet to complete...");// delay(10);
+    rf95.send((uint8_t *)receivedChars, numBytes);
     rf95.waitPacketSent();
-    
-    /*
-    // Now wait for a reply
-    uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
-    uint8_t len = sizeof(buf);
-
-    Serial.println("Waiting for reply..."); delay(10);
-    if (rf95.waitAvailableTimeout(1000))
-    {
-      // Should be a reply message for us now
-      if (rf95.recv(buf, &len))
-      {
-        Serial.print("Got reply: ");
-        Serial.println((char*)buf);
-        Serial.print("RSSI: ");
-        Serial.println(rf95.lastRssi(), DEC);
-      }
-      else
-      {
-        Serial.println("Receive failed");
-      }
-    }
-    else
-    {
-      Serial.println("No reply, is there a listener around?");
-    }
-    */
   }
+  else {
+    if (blinkTime > 50000) {
+      Serial.println("TX Nothing available!");
+      blinkTime = 0;
+      ledState = !ledState;
+      if (ledState)
+        digitalWrite(LED, HIGH);
+      else
+        digitalWrite(LED, LOW);
+    }
+  }
+  blinkTime++;
 }

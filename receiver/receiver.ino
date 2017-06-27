@@ -9,47 +9,10 @@
 #include <SPI.h>
 #include <RH_RF95.h>
 
-/* for feather32u4
-#define RFM95_CS 8
-#define RFM95_RST 4
-#define RFM95_INT 7
-*/
-
 /* for feather m0  */
 #define RFM95_CS 8
 #define RFM95_RST 4
 #define RFM95_INT 3
-
-/* for shield 
-#define RFM95_CS 10
-#define RFM95_RST 9
-#define RFM95_INT 7
-*/
-
-
-/* for ESP w/featherwing 
-#define RFM95_CS  2    // "E"
-#define RFM95_RST 16   // "D"
-#define RFM95_INT 15   // "B"
-*/
-
-/* Feather 32u4 w/wing
-#define RFM95_RST     11   // "A"
-#define RFM95_CS      10   // "B"
-#define RFM95_INT     2    // "SDA" (only SDA/SCL/RX/TX have IRQ!)
-*/
-
-/* Feather m0 w/wing 
-#define RFM95_RST     11   // "A"
-#define RFM95_CS      10   // "B"
-#define RFM95_INT     6    // "D"
-*/
-
-/* Teensy 3.x w/wing 
-#define RFM95_RST     9   // "A"
-#define RFM95_CS      10   // "B"
-#define RFM95_INT     4    // "C"
-*/
 
 // Change to 434.0 or other frequency, must match RX's freq!
 #define RF95_FREQ 915.0
@@ -60,18 +23,18 @@ RH_RF95 rf95(RFM95_CS, RFM95_INT);
 // Blinky on receipt
 #define LED 13
 
-void setup() 
+void setup()
 {
-  pinMode(LED, OUTPUT);     
+  pinMode(LED, OUTPUT);
   pinMode(RFM95_RST, OUTPUT);
   digitalWrite(RFM95_RST, HIGH);
 
-  while (!Serial);
+  //while (!Serial);
   Serial.begin(9600);
   delay(100);
 
   Serial.println("Feather LoRa RX Test!");
-  
+
   // manual reset
   digitalWrite(RFM95_RST, LOW);
   delay(10);
@@ -94,39 +57,38 @@ void setup()
   // Defaults after init are 434.0MHz, 13dBm, Bw = 125 kHz, Cr = 4/5, Sf = 128chips/symbol, CRC on
 
   // The default transmitter power is 13dBm, using PA_BOOST.
-  // If you are using RFM95/96/97/98 modules which uses the PA_BOOST transmitter pin, then 
+  // If you are using RFM95/96/97/98 modules which uses the PA_BOOST transmitter pin, then
   // you can set transmitter powers from 5 to 23 dBm:
   rf95.setTxPower(23, false);
 }
+
+int blinkTime = 0;
+boolean ledState = false;
 
 void loop()
 {
   if (rf95.available())
   {
-    // Should be a message for us now   
+    // Should be a message for us now
     uint8_t buf[150] = {0};
     uint8_t len = sizeof(buf);
-    
+
     if (rf95.recv(buf, &len))
     {
-      digitalWrite(LED, HIGH);
-      RH_RF95::printBuffer("Received: ", buf, len);
-      Serial.print("Got: ");
       Serial.println((char*)buf);
-      Serial.print("RSSI: ");
-      Serial.println(rf95.lastRssi(), DEC);
-      delay(10);
-      // Send a reply
-      /*
-      rf95.send(buf, sizeof(len));
-      rf95.waitPacketSent();
-      Serial.println("Sent a reply");
-      */
-    }
-    else
-    {
-      digitalWrite(LED, LOW);
-      //Serial.println("Receive failed");
     }
   }
+  else
+  {
+    if (blinkTime > 500000) {
+      Serial.println("RX Nothing available!");
+      blinkTime = 0;
+      ledState = !ledState;
+      if (ledState)
+        digitalWrite(LED, HIGH);
+      else
+        digitalWrite(LED, LOW);
+    }
+  }
+  blinkTime++;
 }
