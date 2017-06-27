@@ -62,63 +62,16 @@ void setup()
   rf95.setTxPower(23, false);
 }
 
-int16_t packetnum = 0;  // packet counter, we increment per xmission
-
-// FOR RECEIVING DATA FROM SERIAL PORT
-
-// Example 3 - Receive with start- and end-markers
-
 const byte numChars = 150;
 char receivedChars[numChars];
 
-int recvWithStartEndMarkers() {
-  int numBytesReceived = 0;
-
-  boolean newData = false;
-  boolean recvInProgress = false;
-  byte ndx = 0;
-  char startMarker = '<';
-  char endMarker = '>';
-  char rc;
-
-  // clear receive buffer
-  memset(receivedChars, 0, numChars);
-
-  while (Serial1.available() > 0) {
-    rc = Serial1.read();
-
-    if (recvInProgress == true) {
-      if (rc != endMarker) {
-        receivedChars[ndx] = rc;
-        ndx++;
-        if (ndx >= numChars) {
-          ndx = numChars - 1;
-        }
-      }
-      else {
-        receivedChars[ndx] = '\0'; // terminate the string
-        numBytesReceived = ndx;
-        recvInProgress = false;
-        ndx = 0;
-        break;
-      }
-    }
-    else if (rc == startMarker) {
-      recvInProgress = true;
-    }
-  }
-  return numBytesReceived;
-}
-// END RECEIVING DATA FROM SERIAL PORT
-
-int blinkTime = 0;
 boolean ledState = false;
 
 void loop()
 {
   // receive data from serial port to transmit using the radio
   // receives into 'receivedChars'
-  int numBytes = recvWithStartEndMarkers();
+  int numBytes = Serial1.readBytesUntil('\n', receivedChars, numChars);
   if (numBytes) {
     Serial.print("Sending "); Serial.println(receivedChars);
 
@@ -126,15 +79,11 @@ void loop()
     rf95.waitPacketSent();
   }
   else {
-    if (blinkTime > 50000) {
-      Serial.println("TX Nothing available!");
-      blinkTime = 0;
-      ledState = !ledState;
-      if (ledState)
-        digitalWrite(LED, HIGH);
-      else
-        digitalWrite(LED, LOW);
-    }
+    Serial.println("TX Nothing available!");
+    ledState = !ledState;
+    if (ledState)
+      digitalWrite(LED, HIGH);
+    else
+      digitalWrite(LED, LOW);
   }
-  blinkTime++;
 }
